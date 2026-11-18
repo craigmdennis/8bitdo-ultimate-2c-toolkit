@@ -119,7 +119,7 @@ The patch changes only the Bluetooth interface. USB mode, 2.4 GHz mode and the r
 | Cave | `0x1c880` | zero padding with no references | `cave.s`: builds the Xbox input report, with the paddles and the motion data, and sends it with length 38 |
 | Rumble callback | `0xd53e` | motors from value bytes 0 and 1 | call to the rumble routine |
 | Rumble routine | `0x1c940` | zero padding with no references | `rumble.s`: motor strengths from the Xbox packet, converted to 0-255 |
-| Rumble table | `0x1c780` | zero padding with no references | 101 bytes: `255 × √(x / 100)` for strengths from GameController |
+| Rumble table | `0x1c780` | zero padding with no references | 101 bytes: `28 + 227 × √(x / 100)` for strengths from GameController |
 | Output report reference | `0x1c6f0` | `05 02` | `03 02` |
 | CRC and start-up sum | `0x1ca60` | | recomputed |
 
@@ -143,8 +143,10 @@ The patch therefore uses product ID `0x0b05`, and the report map gives input rep
 
 The patch changes the report ID to 3, and the callback calls the rumble routine, `rumble.s`. The routine reads the Xbox packet `[0f LT RT LOW HIGH ff 00 eb]`, where each strength runs from 0 to 100. The controller has motors in the handles only. The left motor gets the larger of LT and LOW, and the right motor gets the larger of RT and HIGH. The routine then converts each strength to 0-255 in one of two ways, by the last byte of the packet:
 
-- **GameController's packets** end with loop count `00`: `03 0f LT RT LOW HIGH 0a 00 00`. GameController sends a Core Haptics intensity `p` as strength `100 × p²`, so 30 % arrives as 9. The routine caps the strength at 100 and looks it up in the rumble table, where entry `x` is `255 × √(x / 100)`. The motors then run at `255 × p`.
+- **GameController's packets** end with loop count `00`: `03 0f LT RT LOW HIGH 0a 00 00`. GameController sends a Core Haptics intensity `p` as strength `100 × p²`, so 30 % arrives as 9. The routine caps the strength at 100 and looks it up in the rumble table, where entry `x` is `28 + 227 × √(x / 100)` and entry 0 is 0. The motors then run at `28 + 227 × p`.
 - **Packets from SDL's Xbox driver** end with loop count `0xeb`, and carry the strength linearly. The routine multiplies each strength by 164, shifts it right by 6 and caps it at 255, so 100 becomes 255.
+
+The motors start to turn at strength 28, about 29 % PWM duty, so the table starts at 28 for the smallest strength above 0. SDL's packets keep the plain linear conversion, with no minimum.
 
 GameController's plugin, `XboxOneHIDServicePlugin`, cuts off the fraction when it multiplies by 100, so a Core Haptics intensity below about 10 % arrives as 0. No firmware can recover that rumble. A real Xbox controller receives the same packets from GameController, with the same squared strength and the same loss below 10 %.
 

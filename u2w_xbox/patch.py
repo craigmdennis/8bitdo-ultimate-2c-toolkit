@@ -45,10 +45,13 @@ RUMBLE_ADDR = 0x1C940                                # after the cave, in the sa
 RUMBLE_ROUTINE = (                                   # rumble.s linked at 0x1c940 with table=0x1c780
     "204ba24a900200c210ec614be24a910200c211ec224cebaa09c064a800c964a064a900c964a1080b181c591c"
     "7007a4a3580380f9ffa800c9ffa0590389f9ffa900c9ffa17007c04680c70100")
+# The motors start to turn at strength 28 (about 29 % PWM duty). For GameController's packets only, the table maps
+# every strength above 0 onto 28-255. SDL's packets keep the plain linear conversion.
+MIN_STRENGTH = 28
 # GameController sends Core Haptics intensity p as strength 100 * p^2. For GameController's packets (loop count 0,
-# where SDL sends 0xeb), rumble.s looks the strength up here to drive the motor at 255 * p.
+# where SDL sends 0xeb), rumble.s looks the strength up here to drive the motor at 28 + 227 * p.
 RUMBLE_TABLE_ADDR = 0x1C780
-RUMBLE_TABLE = bytes(int(255 * (x / 100) ** 0.5 + 0.5) for x in range(101))
+RUMBLE_TABLE = bytes(0 if x == 0 else MIN_STRENGTH + int((255 - MIN_STRENGTH) * (x / 100) ** 0.5 + 0.5) for x in range(101))
 OUT_REF = (0x1C6F0, "05 02", "03 02")               # initial output report reference: report 3, output
 
 

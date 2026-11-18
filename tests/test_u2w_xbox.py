@@ -67,16 +67,16 @@ class Patch(unittest.TestCase):
         self.assertLessEqual(patch.RUMBLE_ADDR + routine, 0x1CA5C)
 
     def test_core_haptics_table_undoes_the_square(self):
-        # GameController sends intensity p as 100 * p^2. The table must give 255 * p.
+        # GameController sends intensity p as 100 * p^2. The table must give 28 + 227 * p, and 0 for 0.
         for p in (0.1, 0.3, 0.5, 0.7, 1.0):
             sent = round(100 * p * p)
-            self.assertAlmostEqual(patch.RUMBLE_TABLE[sent], 255 * p, delta=4)
+            self.assertAlmostEqual(patch.RUMBLE_TABLE[sent], patch.MIN_STRENGTH + 227 * p, delta=4)
         self.assertEqual((patch.RUMBLE_TABLE[0], patch.RUMBLE_TABLE[100]), (0, 255))
 
-    def test_rumble_strength_reaches_255(self):
-        # rumble.s: max(handle, trigger) * 164 >> 6, capped at 255. Xbox strengths run 0-100.
-        scale = lambda v: min(v * 164 >> 6, 255)
-        self.assertEqual([scale(v) for v in (0, 50, 100, 255)], [0, 128, 255, 255])
+    def test_rumble_strength_from_sdl(self):
+        # rumble.s for SDL's packets: v * 164 >> 6, capped at 255, with no minimum.
+        strength = lambda v: min(v * 164 >> 6, 255)
+        self.assertEqual([strength(v) for v in (0, 1, 50, 100, 255)], [0, 2, 128, 255, 255])
 
     def test_refuses_a_bank_that_differs_at_an_edit_site(self):
         bank = bank_with_originals()
